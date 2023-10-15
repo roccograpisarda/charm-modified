@@ -1,11 +1,11 @@
 from uttInputReader import *
 from random import randint, choice, choices, sample
 from string import printable, whitespace
-#from googletrans import Translator, LANGUAGES #pip install googletrans
+from googletrans import Translator, LANGUAGES #pip install googletrans
 #from translate import Translator  # PIP INSTALL TRANSLATE
 import inflect
 from word2number import w2n
-from yandex.Translater import Translater
+#from yandex.Translater import Translater
 
 # import stanfordnlp
 #from pattern.en import *
@@ -242,11 +242,45 @@ def changeWordToNumber(utt):
         return utt
 
 """
-    This function will submit the utterance to a traduction chain that will change the structure of the utterance 
-    and will simplify it normally.
+    .
 """
-# TIENEN UN MAXIMO DE TRADUCCIONES PERMITIDAS, VER SI HAY ALGUNO GRATUITO QUE PERMITA HACER MÁS TRADUCCIONES.
 
+# Function: traductionChained
+# Purpose: This function will submit the utterance to a traduction chain that will change the structure
+#          of the utterance and will simplify it normally.
+# Input:
+# - utt: The input utterance to be translated.
+# - languages: A list of languages to translate 'utt' through.
+# Output:
+# - Returns the final translated text after going through the language chain.
+
+def traductionChained(utt, languages):
+
+    # Initialize the Google Translate API
+    translator = Translator()  
+
+    # Detect the original language
+    originLang = translator.detect(utt).lang
+    print("The original language is:",originLang)
+  
+    # Translate the input text through the chain of languages
+    for language in languages:
+        translation = translator.translate(utt, src=originLang, dest=language)
+        print("the translation is: ", translation)
+        utt = translation.text
+        originLang = language
+
+    # Translate back to the original language
+    translation = translator.translate(utt, src=originLang, dest=originLang)
+    utt = translation.text
+
+    # Return the final translated text
+    return utt
+
+
+
+""" 
+    THE OLD VERSION OF traductionChained which used the Yandex Translater
 def traductionChained(utt, languages):
     config = configparser.RawConfigParser()
     config.read('./config.cfg')
@@ -288,12 +322,29 @@ def traductionChained(utt, languages):
 #	translator = Translator(from_lang=lanAux, to_lang=originLang) # We convert it to the original language	
 #	utt = translator.translate(utt)
 #
-#	return utt.replace("&#39;", "'")
+#	return utt.replace("&#39;", "'") """
+
+
+
+# Function: randomTraductionChained
+# Purpose: Generate a random translation chain for an input utterance.
+# Input:
+# - utt: The input utterance to be translated.
+# - numLanguages: The number of random languages to include in the translation chain (default is 2).
+# Output:
+# - Returns the final translated text after passing it through the random language chain.
 
 def randomTraductionChained(utt, numLanguages=2):
-    languagesSupported = ["az","ml","sq","mt","am","mk","en","mi","ar","mr","hy","mhr","af","mn","eu","de","ba","ne","be","no","bn","pa","my","pap","bg","fa","bs","pl","cy","pt","hu","ro","vi","ru","ht","ceb","gl","sr","nl","si","mr","sk","el","sl","ka","sw","gu","su","da","tg","he","th","yi","tl","id","ta","ga","tt","it","te","is","tr","es","udm","kk","uz","kn","uk","ca","ur","ky","fi","zh","fr","ko","hi","xh","hr","km","cs","lo","sv","la","gd","lv","et","lt","eo","lb","jv","mg","ja","ms"]
+    # List of languages supported for translation
+    languagesSupported = ['af', 'sq', 'hy', 'az', 'it', 'eu', 'be', 'bg', 'ca', 'hr', 'cs', 'da', 'nl', 'et', 'fi', 'fr', 'zh-cn']
+
+    # Randomly sample 'numLanguages' from the supported languages
     languages = sample(languagesSupported, numLanguages)
+    
+    # Use the 'traductionChained' function to perform translations through the random language chain
     return traductionChained(utt, languages)
+
+
 #	languages = sample(LANGUAGES.keys(), numLanguages)
 #	translator = Translator()
 #	oriLang = translator.detect(utt).lang
@@ -481,7 +532,7 @@ def activeToPassive(utt, nlp):
             if [word.feats for word in wordsRelatedWithVerb if (word.lemma).find('not')]:
                 negative = True
         else:
-            feats = "".join([word.feats for word in wordsRelatedWithVerb if (word.feats).find('Tense')])
+            feats = "".join([word.feats for word in wordsRelatedWithVerb if word.feats and word.feats.find('Tense') != -1])
             thereIsAux = True
         print(feats)
         tenseVerb = "".join([feats[6:] for feats in feats.split('|') if feats.find('Tense')!=-1])
@@ -842,7 +893,7 @@ WE CAN ACTUALLY CHECK IF THE UTTERANCE CAN BE SYNTACTICALLY MODIFIED:
 
 """
 
-def generateUtterances(functions, chatbot, dirFunction, distribution, parameters=[keyboardQWERTYSpanish, 3, 0, ["de", "pl", "zh"], 2, [0], 50], extension="utterance.txt"):
+def generateUtterances(functions, chatbot, dirFunction, distribution, parameters=[keyboardQWERTYSpanish, 3, 0, ["de", "pl", "pt"], 2, [0], 50], extension="utterance.txt"):
 
 
     def useFunction(utt, function, botDir, parameters, nlp):
@@ -926,8 +977,14 @@ if __name__ == "__main__":
     # Issue on GitHub: https://github.com/stanfordnlp/stanfordnlp/issues/6 (They say that
     # stanfordnlp is out of date, and to use stanza (https://github.com/stanfordnlp/stanza)
 
+    # generateUtterances(["mutateUtterance", "mutateUtteranceWithDistances", "deleteChars", "changeNumberToWord", "changeWordToNumber",
+	# 			"activeToPassive", "convertAdjectivesToSynonyms", "convertAdjectivesToAntonyms", "convertObjectsToSynonyms", "convertAdverbsToSynonyms", "convertAdverbsToAntonyms", "noMutation"],
+	# 				    config_details['chatbot_to_test'],
+    #                     "",
+    #                     [1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, 1])
+
     generateUtterances(["mutateUtterance", "mutateUtteranceWithDistances", "deleteChars", "traductionChained", "randomTraductionChained", "changeNumberToWord", "changeWordToNumber",
-				"activeToPassive", "convertAdjectivesToSynonyms", "convertAdjectivesToAntonyms", "convertObjectsToSynonyms", "convertAdverbsToSynonyms", "convertAdverbsToAntonyms", "noMutation"],
-					    config_details['chatbot_to_test'],
-                        "",
-                        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+	 			"activeToPassive", "convertAdjectivesToSynonyms", "convertAdjectivesToAntonyms", "convertObjectsToSynonyms", "convertAdverbsToSynonyms", "convertAdverbsToAntonyms", "noMutation"],
+	 				    config_details['chatbot_to_test'],
+                         "",
+                         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])

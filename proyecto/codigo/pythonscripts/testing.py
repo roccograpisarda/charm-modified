@@ -349,7 +349,7 @@ def coherenceTest(chatbot):
 def gridTest():
 
 	#chatbots = ([f for f in listdir("../convosGen")])
-	chatbots = ["Currency-Converter","News","RoomReservation","ecommerce"]
+	chatbots = ["Currency-Converter","News","RoomReservation","ecommerce", "Weather-bot", "AppointmentScheduler-GCalendar","Temperature-converter"]
 	startExec = timeit.timeit()
 	for chatbot in chatbots:
 

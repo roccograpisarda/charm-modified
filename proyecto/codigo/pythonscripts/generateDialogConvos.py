@@ -7,6 +7,7 @@ from re import sub
 from shutil import copy
 from time import sleep
 import configparser
+import sys
 
 """
 We are going to try to get all the convos of a chatbot in order to get botium results
@@ -70,15 +71,19 @@ def getEntities(dirPath):
 getIntents obtiene la información de los intents de un chatbot, se pueden obtener los contextos, parámetros respuestas....
 """
 def getIntents(dirPath):
-
     intentDict = {}
-    intInfoFiles = [join(dirPath,f) for f in listdir(dirPath) if isfile(join(dirPath, f)) and not f[-17:-5] == '_usersays_en']
+    intInfoFiles = [join(dirPath, f) for f in listdir(dirPath) if isfile(join(dirPath, f)) and not f[-17:-5] == '_usersays_en']
 
     for intInfo in intInfoFiles:
         with open(intInfo) as file:
-            intInfoDict = json.load(file)
-            #print(intInfoDict['name'].replace(' ', ''))
-            intentDict[intInfoDict['name']] = intInfoDict
+            intInfoData = json.load(file)
+            if isinstance(intInfoData, list):  # Check if the data is a list
+                for intInfoDict in intInfoData:
+                    if 'name' in intInfoDict:  # Check if 'name' is a key in the dictionary
+                        intentDict[intInfoDict['name']] = intInfoDict
+            elif isinstance(intInfoData, dict):  # Check if the data is a dictionary
+                if 'name' in intInfoData:  # Check if 'name' is a key in the dictionary
+                    intentDict[intInfoData['name']] = intInfoData
 
     return intentDict
 
@@ -134,42 +139,32 @@ def writeEntityFile(directory, entityDict):
     f.write(entityDictJson)
     f.close()
 
-"""
-getDependancies obtiene las dependencias entre los intents, de esta manera luego podemos generar las conversaciones aplicando contexto. 
+def getDependenciesRec(intentDict, intentKey, affectedContext, contextDependencyDict):
+    if intentKey in contextDependencyDict:
+        return contextDependencyDict  # Already processed this intent, return
 
-To do it we need to see if the intent we are going to check, has context and it has no parent id, if so, we need to check those intents which 
-parents id is the id of the intent we are checking, and has the same contextname. If so, we can continue checking the sons of that intent and so on.
+    contextDependencyDict[intentKey] = []  # Initialize the intent's dependency list
 
-"""
+    for nextIntentKey in intentDict.keys():
+        if 'parentId' in intentDict[nextIntentKey] and intentDict[nextIntentKey]['parentId'] == intentKey:
+            if 'responses' in intentDict[nextIntentKey] and intentDict[nextIntentKey]['responses']:
+                affectedContexts = intentDict[nextIntentKey]['responses'][0].get('affectedContexts', [])
+                for affectedContextsAux in affectedContexts:
+                    if affectedContextsAux['name'] == affectedContext:
+                        contextDependencyDict[intentKey].append(nextIntentKey)
+                        getDependenciesRec(intentDict, nextIntentKey, affectedContext, contextDependencyDict)
+
+    return contextDependencyDict
+
 def getDependencies(intentDict):
-
-    # Recursively search for each context
-    def getDendenciesRec(intentDict, affectedContext):
-
-        contextDependencyDict = {}
-
-        for intentKey in intentDict.keys():
-            if 'contexts' in intentDict[intentKey]:
-                if affectedContext in intentDict[intentKey]['contexts']:
-                    contextDependencyDict[intentKey] = []
-                    if 'responses' in intentDict[intentKey] and intentDict[intentKey]['responses']:
-                        if 'affectedContexts' in intentDict[intentKey]['responses'][0]:
-                            for affectedContextsAux in intentDict[intentKey]['responses'][0]['affectedContexts']:
-                                contextDependencyDict[intentKey].append(getDendenciesRec(intentDict, affectedContextsAux['name']))
-
-        return contextDependencyDict
-
-    dependenciesDict = {}
+    contextDependencyDict = {}
 
     for intentKey in intentDict.keys():
         if 'parentId' not in intentDict[intentKey]:
-            dependenciesDict[intentKey] = []
-            if 'responses' in intentDict[intentKey] and intentDict[intentKey]['responses']:
-                if 'affectedContexts' in intentDict[intentKey]['responses'][0]:
-                    for affectedContext in intentDict[intentKey]['responses'][0]['affectedContexts']:
-                        dependenciesDict[intentKey].append(getDendenciesRec(intentDict, affectedContext['name']))
+            getDependenciesRec(intentDict, intentKey, '', contextDependencyDict)  # Start the recursion from top-level intents
 
-    return dependenciesDict
+    return contextDependencyDict
+
 
 
 def walkOverDependencies(intentDict, dependenciesDict, entityDict, entityCombDict, chatbot, nTrainingUtterances=0): #CORREGIR
@@ -772,8 +767,8 @@ def get_config_dict(section_name):
 
 if __name__ == "__main__":
 
-    chatbots = ["Currency-Converter","News","RoomReservation","ecommerce"]
-    nTrainingUtterances = [100,100,100,100]
+    chatbots = ["Currency-Converter","News","RoomReservation","ecommerce", "Weather-bot", "AppointmentScheduler-GoogleCalendar","Temperature-converter"]
+    nTrainingUtterances = [10,10,10,10,10,10,10]
     i=0
 
     config = configparser.RawConfigParser()
