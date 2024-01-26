@@ -17,11 +17,7 @@ Open the file and add these values:
 [project]
 root_project_dir = <Path of Charm folder>
 chatbot_to_test = <Name of the folder containing the bot you want to test>
-yandex_api_key=<Your Yandex API Key>
 ```
-
-- You have to put the folder containing the bot you want test here: `Charm/chatbots/`
-- To can create a Yandex API Key here: [https://yandex.com/dev/predictor/keys/get/](https://yandex.com/dev/predictor/keys/get/).
 
 ### Generate convos from dialogflow
 
